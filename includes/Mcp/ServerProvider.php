@@ -34,7 +34,7 @@ final class ServerProvider {
 			NullMcpObservabilityHandler::class,    // 9 observability handler
 			AbilityRegistrar::tool_ability_names(),     // 10 tools
 			AbilityRegistrar::resource_ability_names(), // 11 resources
-			array(),                                    // 12 prompts
+			AbilityRegistrar::prompt_ability_names(),   // 12 prompts
 			static function ( \WP_REST_Request $request ) { // 13 transport permission callback
 				// Phase 2 placeholder: any authenticated user. Real JWT / App-Password
 				// parity is added in Phase 10 (see modernization design section 5).

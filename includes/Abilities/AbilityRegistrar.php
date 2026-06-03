@@ -62,6 +62,7 @@ final class AbilityRegistrar {
 			$group::register();
 		}
 		ResourceAbilities::register();
+		PromptAbilities::register();
 	}
 
 	/**
@@ -71,6 +72,32 @@ final class AbilityRegistrar {
 	 */
 	public static function resource_ability_names(): array {
 		return ResourceAbilities::names();
+	}
+
+	/**
+	 * Full ability names to expose as MCP prompts on the server.
+	 *
+	 * @return string[]
+	 */
+	public static function prompt_ability_names(): array {
+		return PromptAbilities::names();
+	}
+
+	/**
+	 * Filter callback: surface our prompt abilities under their slug (dropping the
+	 * "<NS>/" prefix) so legacy prompt names (get-site-info, analyze-sales) hold.
+	 *
+	 * @param string      $name    Sanitized MCP prompt name.
+	 * @param \WP_Ability $ability Source ability.
+	 * @return string
+	 */
+	public static function map_prompt_name( $name, $ability ) {
+		$ability_name = $ability->get_name();
+		$prefix       = self::NS . '/';
+		if ( 0 === strpos( $ability_name, $prefix ) ) {
+			return substr( $ability_name, strlen( $prefix ) );
+		}
+		return $name;
 	}
 
 	/**
