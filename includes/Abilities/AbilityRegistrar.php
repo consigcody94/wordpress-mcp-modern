@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace WPMCP\Modern\Abilities;
 
+use WPMCP\Modern\Admin\SettingsStore;
+
 /**
  * Central registry of the plugin's ability groups.
  *
@@ -66,6 +68,7 @@ final class AbilityRegistrar {
 		}
 		ResourceAbilities::register();
 		PromptAbilities::register();
+		RestCrudAbilities::register();
 	}
 
 	/**
@@ -74,7 +77,7 @@ final class AbilityRegistrar {
 	 * @return string[]
 	 */
 	public static function resource_ability_names(): array {
-		return ResourceAbilities::names();
+		return SettingsStore::is_enabled() ? ResourceAbilities::names() : array();
 	}
 
 	/**
@@ -83,7 +86,7 @@ final class AbilityRegistrar {
 	 * @return string[]
 	 */
 	public static function prompt_ability_names(): array {
-		return PromptAbilities::names();
+		return SettingsStore::is_enabled() ? PromptAbilities::names() : array();
 	}
 
 	/**
@@ -109,25 +112,38 @@ final class AbilityRegistrar {
 	 * @return string[]
 	 */
 	public static function tool_ability_names(): array {
+		if ( ! SettingsStore::is_enabled() ) {
+			return array();
+		}
+
+		// Experimental generic mode: replace the curated toolset with the three
+		// REST-CRUD tools (matching legacy behaviour).
+		if ( SettingsStore::rest_crud_mode() ) {
+			return RestCrudAbilities::names();
+		}
+
 		$names = array();
 		foreach ( self::groups() as $group ) {
 			foreach ( $group::definitions() as $def ) {
-				$names[] = $def['name'];
+				$type      = $def['type'] ?? 'action';
+				$tool_name = $def['mcp_name'] ?? $def['name'];
+				if ( SettingsStore::is_type_enabled( $type ) && SettingsStore::is_tool_enabled( $tool_name ) ) {
+					$names[] = $def['name'];
+				}
 			}
 		}
 
-		// Only expose external (e.g. core) abilities that are actually registered
-		// in this environment. wp_get_abilities() also forces the registry to
-		// initialise, ensuring our own abilities are registered before the server
-		// resolves them. Guarded so missing core abilities never trigger errors.
+		// External (e.g. core) abilities — read-only; included when registered in
+		// this environment and not individually disabled. wp_get_abilities() also
+		// forces the registry to initialise before the server resolves tools.
 		$registered = array();
 		if ( function_exists( 'wp_get_abilities' ) ) {
 			foreach ( wp_get_abilities() as $ability ) {
 				$registered[ $ability->get_name() ] = true;
 			}
 		}
-		foreach ( array_keys( self::EXTERNAL_TOOLS ) as $external_name ) {
-			if ( isset( $registered[ $external_name ] ) ) {
+		foreach ( self::EXTERNAL_TOOLS as $external_name => $tool_name ) {
+			if ( isset( $registered[ $external_name ] ) && SettingsStore::is_tool_enabled( $tool_name ) ) {
 				$names[] = $external_name;
 			}
 		}
@@ -151,6 +167,11 @@ final class AbilityRegistrar {
 					if ( ! empty( $def['mcp_name'] ) ) {
 						self::$name_map[ $def['name'] ] = $def['mcp_name'];
 					}
+				}
+			}
+			foreach ( RestCrudAbilities::definitions() as $def ) {
+				if ( ! empty( $def['mcp_name'] ) ) {
+					self::$name_map[ $def['name'] ] = $def['mcp_name'];
 				}
 			}
 		}
