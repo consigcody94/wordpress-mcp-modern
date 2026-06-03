@@ -51,6 +51,7 @@ final class AbilityRegistrar {
 			TaxonomyAbilities::class,
 			UsersAbilities::class,
 			SettingsAbilities::class,
+			CptAbilities::class,
 		);
 	}
 
