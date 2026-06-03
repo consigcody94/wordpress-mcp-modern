@@ -36,6 +36,7 @@ final class AbilityRegistrar {
 		return array(
 			ContentAbilities::class,
 			TaxonomyAbilities::class,
+			UsersAbilities::class,
 		);
 	}
 
