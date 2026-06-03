@@ -1,0 +1,13 @@
+# Files excluded from a distributed plugin build.
+# (vendor/ is intentionally NOT excluded — it is required at runtime.)
+/.git
+/.github
+/.wp-env.json
+/.gitignore
+/.distignore
+/.phpunit.result.cache
+/composer.lock
+/phpunit.xml.dist
+/docs
+/tests
+/node_modules
