@@ -61,6 +61,16 @@ final class AbilityRegistrar {
 		foreach ( self::groups() as $group ) {
 			$group::register();
 		}
+		ResourceAbilities::register();
+	}
+
+	/**
+	 * Full ability names to expose as MCP resources on the server.
+	 *
+	 * @return string[]
+	 */
+	public static function resource_ability_names(): array {
+		return ResourceAbilities::names();
 	}
 
 	/**
