@@ -53,6 +53,7 @@ final class AbilityRegistrar {
 			SettingsAbilities::class,
 			CptAbilities::class,
 			MediaAbilities::class,
+			WooAbilities::class,
 		);
 	}
 
