@@ -52,6 +52,7 @@ final class AbilityRegistrar {
 			UsersAbilities::class,
 			SettingsAbilities::class,
 			CptAbilities::class,
+			MediaAbilities::class,
 		);
 	}
 
