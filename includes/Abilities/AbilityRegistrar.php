@@ -35,6 +35,7 @@ final class AbilityRegistrar {
 	private static function groups(): array {
 		return array(
 			ContentAbilities::class,
+			TaxonomyAbilities::class,
 		);
 	}
 

@@ -89,4 +89,34 @@ final class ContentAbilitiesTest extends WP_UnitTestCase {
 		);
 		$this->assertContains( 'Findable Draft', $titles );
 	}
+
+	public function test_page_abilities_are_registered(): void {
+		$expected = array(
+			'wordpress-mcp/wp-pages-search',
+			'wordpress-mcp/wp-get-page',
+			'wordpress-mcp/wp-add-page',
+			'wordpress-mcp/wp-update-page',
+			'wordpress-mcp/wp-delete-page',
+		);
+		foreach ( $expected as $name ) {
+			$this->assertNotNull( $this->ability( $name ), "Ability not registered: {$name}" );
+		}
+	}
+
+	public function test_add_then_get_page_round_trips(): void {
+		$created = $this->ability( 'wordpress-mcp/wp-add-page' )->execute(
+			array(
+				'title'   => 'About',
+				'content' => 'About us',
+				'status'  => 'draft',
+			)
+		);
+		$this->assertIsArray( $created );
+		$this->assertArrayHasKey( 'id', $created );
+		$id = (int) $created['id'];
+
+		$fetched = $this->ability( 'wordpress-mcp/wp-get-page' )->execute( array( 'id' => $id ) );
+		$title   = $fetched['title']['raw'] ?? ( $fetched['title']['rendered'] ?? '' );
+		$this->assertSame( 'About', $title );
+	}
 }
