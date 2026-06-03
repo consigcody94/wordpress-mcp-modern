@@ -19,11 +19,46 @@ Installed signature (`vendor/wordpress/mcp-adapter/includes/Core/McpAdapter.php:
 has **13 parameters**, ending in `?callable $transport_permission_callback = null`.
 `ServerProvider::create()` matches this positional list exactly.
 
-## Pending (filled in as Tasks 3–5 run)
+## Results (Tasks 3–4) — all green
 
-- [ ] WP core version (Task 3 Step 3): _____
-- [ ] Abilities API present in core vs. plugin (Task 3 Step 4): _____
-- [ ] Server `wpmcp-modern` registered (Task 3 Step 6): _____
-- [ ] Live `initialize` + `tools/list` over HTTP (Task 4): protocol version echoed = _____
-- [ ] STDIO smoke (Task 4 Step 4): _____
-- [ ] Working phpunit runner command (Task 5 Step 4): _____
+- **WP core version:** **7.0** (container PHP **8.3.31**).
+- **Abilities API (Open Q#1 ✓):** ships in **core** — no `abilities-api` plugin
+  needed. `function_exists('wp_register_ability') === true`.
+- **Server registered:** `wp mcp-adapter list` →
+  `wpmcp-modern  WordPress MCP (Modern)  0.1.0  0/0/0` plus
+  `mcp-adapter-default-server` (3 tools).
+- **HTTP `initialize`:** 200; `serverInfo.name = "WordPress MCP (Modern)"`;
+  **protocolVersion echoed = `2025-06-18`**; `Mcp-Session-Id` response header
+  issued (e.g. `fe7c5318-…`). Auth via **Application Password** (HTTP Basic) —
+  works with zero JWT code.
+- **HTTP `tools/list`:** `{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}` with the
+  session id. **Phase 2 DoD met.**
+- **STDIO:** `echo '{…tools/list…}' | wp mcp-adapter serve --server=wpmcp-modern
+  --user=admin` → `{"result":{"tools":[]}}`. Both transports confirmed.
+- **Endpoint:** `POST http://localhost:8888/wp-json/wpmcp/mcp`.
+
+## Notes for later phases
+
+- `Accept: application/json, text/event-stream` is accepted; protocol
+  `2025-06-18` negotiates fine (no need to force `2025-11-25`).
+- Application Passwords satisfy the Phase-2 `current_user_can('read')` callback;
+  JWT parity (Phase 10) is additive, not required for transport to work.
+- Container runs PHP 8.3 — safe to use 8.x niceties guarded by the 7.4 floor.
+### PHPUnit runner (Task 5 ✓)
+
+wp-env's tests container ships the WP test library at **`WP_TESTS_DIR=/wordpress-phpunit`**
+with a ready `wp-tests-config.php` (DB `tests-wordpress` on `tests-mysql`, root/password).
+`tests/bootstrap.php` therefore prefers `WP_TESTS_DIR` over the vendored wp-phpunit.
+
+**Working command (use this for all later phases):**
+```
+npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/wordpress-mcp-modern vendor/bin/phpunit
+```
+Result: `OK (3 tests, 6 assertions)`.
+
+### Standard command cheat-sheet
+
+- Composer: `docker run --rm -v "C:/Users/Cody/WPMCP/wordpress-mcp-modern:/app" -v "C:/Users/Cody/WPMCP/mcp-adapter:/mcp-adapter" -w /app composer:2 <args>`
+- WP-CLI: `npx @wordpress/env run cli wp <args>`  (note: `@wordpress/env`, not `wp-env`)
+- Tests: `npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/wordpress-mcp-modern vendor/bin/phpunit`
+- HTTP endpoint: `POST http://localhost:8888/wp-json/wpmcp/mcp`
