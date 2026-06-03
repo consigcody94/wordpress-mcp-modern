@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace WPMCP\Modern;
 
 use WPMCP\Modern\Abilities\AbilityRegistrar;
+use WPMCP\Modern\Admin\SettingsPage;
 use WPMCP\Modern\Auth\JwtRestRoutes;
 use WPMCP\Modern\Mcp\ServerProvider;
 
@@ -27,6 +28,7 @@ final class Plugin {
 		add_filter( 'mcp_adapter_prompt_name', array( AbilityRegistrar::class, 'map_prompt_name' ), 10, 2 );
 		add_action( 'mcp_adapter_init', array( ServerProvider::class, 'create' ) );
 		add_action( 'rest_api_init', array( JwtRestRoutes::class, 'register' ) );
+		SettingsPage::register();
 	}
 
 	public function register_category(): void {

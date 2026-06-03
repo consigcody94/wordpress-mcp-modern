@@ -152,6 +152,33 @@ final class AbilityRegistrar {
 	}
 
 	/**
+	 * Catalog of curated + external tools for the admin UI (ignores gating):
+	 * each entry is [ 'tool' => mcp name, 'type' => type, 'label' => label ].
+	 *
+	 * @return array<int,array<string,string>>
+	 */
+	public static function tool_catalog(): array {
+		$catalog = array();
+		foreach ( self::groups() as $group ) {
+			foreach ( $group::definitions() as $def ) {
+				$catalog[] = array(
+					'tool'  => $def['mcp_name'] ?? $def['name'],
+					'type'  => $def['type'] ?? 'action',
+					'label' => $def['label'] ?? ( $def['mcp_name'] ?? $def['name'] ),
+				);
+			}
+		}
+		foreach ( self::EXTERNAL_TOOLS as $mcp_name ) {
+			$catalog[] = array(
+				'tool'  => $mcp_name,
+				'type'  => 'read',
+				'label' => $mcp_name,
+			);
+		}
+		return $catalog;
+	}
+
+	/**
 	 * Filter callback: restore the legacy (underscore) MCP tool name for our
 	 * abilities. Falls back to the sanitized name for anything we don't own.
 	 *
