@@ -7,6 +7,7 @@ use WP\MCP\Core\McpAdapter;
 use WP\MCP\Transport\HttpTransport;
 use WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler;
 use WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler;
+use WPMCP\Modern\Abilities\AbilityRegistrar;
 
 /**
  * Registers the plugin's MCP server during mcp_adapter_init.
@@ -31,7 +32,7 @@ final class ServerProvider {
 			array( HttpTransport::class ),         // 7 transports
 			ErrorLogMcpErrorHandler::class,        // 8 error handler
 			NullMcpObservabilityHandler::class,    // 9 observability handler
-			array(),                               // 10 tools (empty for Phase 2)
+			AbilityRegistrar::tool_ability_names(), // 10 tools
 			array(),                               // 11 resources
 			array(),                               // 12 prompts
 			static function ( \WP_REST_Request $request ) { // 13 transport permission callback

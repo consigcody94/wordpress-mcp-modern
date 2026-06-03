@@ -19,4 +19,11 @@ tests_add_filter(
 	}
 );
 
+// Suppress mcp-adapter's default server in the test harness. rest_do_request()
+// inside a test fires rest_api_init, which would build the default server and emit
+// "doing_it_wrong" notices about its own abilities' registration timing — a
+// harness-only artifact (works fine over real HTTP). Our plugin's own server and
+// abilities are exercised directly, so this does not reduce coverage.
+tests_add_filter( 'mcp_adapter_create_default_server', '__return_false' );
+
 require $_tests_dir . '/includes/bootstrap.php';

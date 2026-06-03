@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace WPMCP\Modern;
 
+use WPMCP\Modern\Abilities\AbilityRegistrar;
 use WPMCP\Modern\Mcp\ServerProvider;
 
 /**
@@ -20,6 +21,8 @@ final class Plugin {
 
 	private function __construct() {
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_category' ) );
+		add_action( 'wp_abilities_api_init', array( AbilityRegistrar::class, 'register_all' ) );
+		add_filter( 'mcp_adapter_tool_name', array( AbilityRegistrar::class, 'map_tool_name' ), 10, 2 );
 		add_action( 'mcp_adapter_init', array( ServerProvider::class, 'create' ) );
 	}
 
