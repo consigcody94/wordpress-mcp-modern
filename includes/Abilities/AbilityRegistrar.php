@@ -21,6 +21,19 @@ final class AbilityRegistrar {
 	public const NS = 'wordpress-mcp';
 
 	/**
+	 * Already-registered abilities (e.g. WordPress core) to expose as tools,
+	 * mapped to the MCP tool name to surface them under. These are not registered
+	 * by us — core registers them on `wp_abilities_api_init`.
+	 *
+	 * @var array<string,string>
+	 */
+	private const EXTERNAL_TOOLS = array(
+		'core/get-site-info'        => 'get_site_info',
+		'core/get-user-info'        => 'get_user_info',
+		'core/get-environment-info' => 'get_environment_info',
+	);
+
+	/**
 	 * Cache of ability-name => legacy MCP tool-name.
 	 *
 	 * @var array<string,string>|null
@@ -37,6 +50,7 @@ final class AbilityRegistrar {
 			ContentAbilities::class,
 			TaxonomyAbilities::class,
 			UsersAbilities::class,
+			SettingsAbilities::class,
 		);
 	}
 
@@ -61,6 +75,23 @@ final class AbilityRegistrar {
 				$names[] = $def['name'];
 			}
 		}
+
+		// Only expose external (e.g. core) abilities that are actually registered
+		// in this environment. wp_get_abilities() also forces the registry to
+		// initialise, ensuring our own abilities are registered before the server
+		// resolves them. Guarded so missing core abilities never trigger errors.
+		$registered = array();
+		if ( function_exists( 'wp_get_abilities' ) ) {
+			foreach ( wp_get_abilities() as $ability ) {
+				$registered[ $ability->get_name() ] = true;
+			}
+		}
+		foreach ( array_keys( self::EXTERNAL_TOOLS ) as $external_name ) {
+			if ( isset( $registered[ $external_name ] ) ) {
+				$names[] = $external_name;
+			}
+		}
+
 		return $names;
 	}
 
@@ -74,7 +105,7 @@ final class AbilityRegistrar {
 	 */
 	public static function map_tool_name( $name, $ability ) {
 		if ( null === self::$name_map ) {
-			self::$name_map = array();
+			self::$name_map = self::EXTERNAL_TOOLS;
 			foreach ( self::groups() as $group ) {
 				foreach ( $group::definitions() as $def ) {
 					if ( ! empty( $def['mcp_name'] ) ) {
