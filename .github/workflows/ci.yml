@@ -46,20 +46,26 @@ jobs:
       - name: Install production dependencies
         run: docker run --rm -v "$PWD":/app -w /app composer:2 install --no-dev --no-interaction --no-progress
 
-      # With a .wp-env.json present the action tries to reuse that (not
-      # running / version-mismatched) environment. Hide it so the action
-      # provisions its own, as it does for plugins without one.
-      - name: Hide .wp-env.json from the action
-        run: mv .wp-env.json .wp-env.json.ci-hidden
-
-      - name: Run plugin check
-        uses: WordPress/plugin-check-action@v1
+      - name: Set up Node
+        uses: actions/setup-node@v5
         with:
-          # Errors gate the build; warnings are advisory. The trademarks check
-          # is excluded: renaming for directory submission is a maintainer call.
-          ignore-warnings: true
-          exclude-checks: trademarks
-          exclude-directories: docs,tests
+          node-version: 20
+
+      - name: Start WordPress environment
+        run: npx --yes @wordpress/env start
+
+      - name: Install Plugin Check
+        run: npx --yes @wordpress/env run cli wp plugin install plugin-check --activate
+
+      # Errors gate the build; warnings are advisory. Excluded: trademarks
+      # (the rename for directory submission is a maintainer call), vendor
+      # (third-party libraries reviewed upstream), and non-shipping dirs.
+      - name: Run plugin check
+        run: |
+          npx --yes @wordpress/env run cli wp plugin check wordpress-mcp-modern \
+            --ignore-warnings \
+            --exclude-checks=trademarks \
+            --exclude-directories=docs,tests,vendor,node_modules
 
   test:
     name: PHPUnit (wp-env)
