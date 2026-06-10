@@ -1,0 +1,29 @@
+name: Bug report
+description: Something isn't working
+labels: [ bug ]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        WordPress version:
+        PHP version:
+        Plugin version:
+        MCP client (Claude Desktop, Cursor, VS Code, curl, …):
+        Auth method (Application Password / JWT):
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      description: Relevant entries from debug.log or the MCP client, if any.
+      render: text

@@ -6,8 +6,8 @@ namespace WPMCP\Modern\Abilities;
 /**
  * Media library capabilities, mirroring the legacy wordpress-mcp media tools.
  * Reads/update/delete proxy the core /wp/v2/media route; upload is native
- * (base64 -> attachment) and file-info returns the resolved URL + metadata
- * (rather than raw bytes, which keeps tool output JSON-friendly).
+ * (base64 -> attachment) and file-info returns the resolved URL + metadata,
+ * with opt-in base64 file contents (size-capped) for clients that need bytes.
  */
 final class MediaAbilities {
 
@@ -191,14 +191,15 @@ final class MediaAbilities {
 				'mcp_name'     => 'wp_get_media_file',
 				'kind'         => 'native',
 				'label'        => 'Get media file',
-				'description'  => 'Resolve a media item\'s file URL and metadata for a given size.',
+				'description'  => 'Resolve a media item\'s file URL and metadata for a given size; optionally include the file contents as base64.',
 				'type'         => 'read',
 				'capability'   => 'read',
 				'input_schema' => array(
 					'type'       => 'object',
 					'properties' => array(
-						'id'   => array( 'type' => 'integer', 'description' => 'The media (attachment) ID.' ),
-						'size' => array( 'type' => 'string', 'enum' => array( 'thumbnail', 'medium', 'large', 'full' ), 'default' => 'full' ),
+						'id'           => array( 'type' => 'integer', 'description' => 'The media (attachment) ID.' ),
+						'size'         => array( 'type' => 'string', 'enum' => array( 'thumbnail', 'medium', 'large', 'full' ), 'default' => 'full' ),
+						'include_data' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Include the file contents base64-encoded in the "data" field (subject to a size limit).' ),
 					),
 					'required'   => array( 'id' ),
 				),
@@ -210,7 +211,7 @@ final class MediaAbilities {
 					}
 					$size = $input['size'] ?? 'full';
 					$src  = wp_get_attachment_image_src( $id, $size );
-					return array(
+					$out  = array(
 						'id'     => $id,
 						'url'    => $src ? $src[0] : wp_get_attachment_url( $id ),
 						'mime'   => get_post_mime_type( $id ),
@@ -218,6 +219,32 @@ final class MediaAbilities {
 						'width'  => $src[1] ?? null,
 						'height' => $src[2] ?? null,
 					);
+
+					if ( ! empty( $input['include_data'] ) ) {
+						$path = get_attached_file( $id );
+						if ( 'full' !== $size ) {
+							$intermediate = image_get_intermediate_size( $id, $size );
+							if ( $intermediate && ! empty( $intermediate['path'] ) ) {
+								$uploads = wp_get_upload_dir();
+								$path    = trailingslashit( $uploads['basedir'] ) . $intermediate['path'];
+							}
+						}
+						if ( ! $path || ! is_readable( $path ) ) {
+							$out['data_error'] = 'file_not_readable';
+							return $out;
+						}
+						$max_bytes = (int) apply_filters( 'wpmcp_media_file_max_bytes', 5 * MB_IN_BYTES );
+						$bytes     = filesize( $path );
+						if ( false === $bytes || $bytes > $max_bytes ) {
+							$out['data_error'] = 'file_too_large';
+							$out['file_bytes'] = false === $bytes ? null : $bytes;
+							return $out;
+						}
+						$out['data']       = base64_encode( (string) file_get_contents( $path ) );
+						$out['file_bytes'] = $bytes;
+					}
+
+					return $out;
 				},
 			),
 		);
