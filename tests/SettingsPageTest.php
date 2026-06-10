@@ -32,6 +32,8 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'enable_rest_api_crud_tools', $html, 'should expose the REST-CRUD toggle' );
 		$this->assertStringContainsString( 'wp_posts_search', $html, 'should list curated tools' );
 		$this->assertStringContainsString( 'Authentication tokens', $html, 'should include the token panel' );
+		$this->assertStringContainsString( 'wpmcp-settings-app', $html, 'should render the React app mount point' );
+		$this->assertStringContainsString( 'wpmcp-legacy-settings', $html, 'should keep the no-JS fallback form' );
 	}
 
 	public function test_render_requires_manage_options(): void {
