@@ -7,7 +7,8 @@ namespace WPMCP\Modern\Abilities;
  * Media library capabilities, mirroring the legacy wordpress-mcp media tools.
  * Reads/update/delete proxy the core /wp/v2/media route; upload is native
  * (base64 -> attachment) and file-info returns the resolved URL + metadata,
- * with opt-in base64 file contents (size-capped) for clients that need bytes.
+ * with opt-in base64 file contents (size-capped) for clients that need bytes,
+ * or a native MCP image content block via as_image.
  */
 final class MediaAbilities {
 
@@ -191,7 +192,7 @@ final class MediaAbilities {
 				'mcp_name'     => 'wp_get_media_file',
 				'kind'         => 'native',
 				'label'        => 'Get media file',
-				'description'  => 'Resolve a media item\'s file URL and metadata for a given size; optionally include the file contents as base64.',
+				'description'  => 'Resolve a media item\'s file URL and metadata for a given size; optionally include the file contents as base64, or return images as a native MCP image content block.',
 				'type'         => 'read',
 				'capability'   => 'read',
 				'input_schema' => array(
@@ -200,6 +201,7 @@ final class MediaAbilities {
 						'id'           => array( 'type' => 'integer', 'description' => 'The media (attachment) ID.' ),
 						'size'         => array( 'type' => 'string', 'enum' => array( 'thumbnail', 'medium', 'large', 'full' ), 'default' => 'full' ),
 						'include_data' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Include the file contents base64-encoded in the "data" field (subject to a size limit).' ),
+						'as_image'     => array( 'type' => 'boolean', 'default' => false, 'description' => 'Return the file as a native MCP image content block instead of JSON metadata (images only; subject to the same size limit). Takes precedence over include_data.' ),
 					),
 					'required'   => array( 'id' ),
 				),
@@ -209,44 +211,72 @@ final class MediaAbilities {
 					if ( ! $post || 'attachment' !== $post->post_type ) {
 						return array( 'error' => 'not_found', 'message' => 'Attachment not found.' );
 					}
-					$size = $input['size'] ?? 'full';
+					$size = (string) ( $input['size'] ?? 'full' );
 					$src  = wp_get_attachment_image_src( $id, $size );
+					$mime = get_post_mime_type( $id );
 					$out  = array(
 						'id'     => $id,
 						'url'    => $src ? $src[0] : wp_get_attachment_url( $id ),
-						'mime'   => get_post_mime_type( $id ),
+						'mime'   => $mime,
 						'alt'    => get_post_meta( $id, '_wp_attachment_image_alt', true ),
 						'width'  => $src[1] ?? null,
 						'height' => $src[2] ?? null,
 					);
 
-					if ( ! empty( $input['include_data'] ) ) {
-						$path = get_attached_file( $id );
-						if ( 'full' !== $size ) {
-							$intermediate = image_get_intermediate_size( $id, $size );
-							if ( $intermediate && ! empty( $intermediate['path'] ) ) {
-								$uploads = wp_get_upload_dir();
-								$path    = trailingslashit( $uploads['basedir'] ) . $intermediate['path'];
-							}
-						}
-						if ( ! $path || ! is_readable( $path ) ) {
-							$out['data_error'] = 'file_not_readable';
-							return $out;
-						}
-						$max_bytes = (int) apply_filters( 'wpmcp_media_file_max_bytes', 5 * MB_IN_BYTES );
-						$bytes     = filesize( $path );
-						if ( false === $bytes || $bytes > $max_bytes ) {
-							$out['data_error'] = 'file_too_large';
-							$out['file_bytes'] = false === $bytes ? null : $bytes;
-							return $out;
-						}
-						$out['data']       = base64_encode( (string) file_get_contents( $path ) );
-						$out['file_bytes'] = $bytes;
+					$as_image = ! empty( $input['as_image'] );
+					if ( ! $as_image && empty( $input['include_data'] ) ) {
+						return $out;
 					}
 
+					if ( $as_image && 0 !== strpos( (string) $mime, 'image/' ) ) {
+						$out['data_error'] = 'not_an_image';
+						return $out;
+					}
+
+					$path = self::resolve_file_path( $id, $size );
+					if ( ! $path || ! is_readable( $path ) ) {
+						$out['data_error'] = 'file_not_readable';
+						return $out;
+					}
+					$max_bytes = (int) apply_filters( 'wpmcp_media_file_max_bytes', 5 * MB_IN_BYTES );
+					$bytes     = filesize( $path );
+					if ( false === $bytes || $bytes > $max_bytes ) {
+						$out['data_error'] = 'file_too_large';
+						$out['file_bytes'] = false === $bytes ? null : $bytes;
+						return $out;
+					}
+
+					if ( $as_image ) {
+						// mcp-adapter's ToolsHandler turns this envelope into a native
+						// MCP ImageContent block (it base64-encodes the raw bytes itself).
+						return array(
+							'type'     => 'image',
+							'results'  => (string) file_get_contents( $path ),
+							'mimeType' => $mime,
+						);
+					}
+
+					$out['data']       = base64_encode( (string) file_get_contents( $path ) );
+					$out['file_bytes'] = $bytes;
 					return $out;
 				},
 			),
 		);
+	}
+
+	/**
+	 * Absolute filesystem path for an attachment at a given size ('full' or a
+	 * registered intermediate size), or null when unresolvable.
+	 */
+	private static function resolve_file_path( int $id, string $size ): ?string {
+		$path = get_attached_file( $id );
+		if ( 'full' !== $size ) {
+			$intermediate = image_get_intermediate_size( $id, $size );
+			if ( $intermediate && ! empty( $intermediate['path'] ) ) {
+				$uploads = wp_get_upload_dir();
+				$path    = trailingslashit( $uploads['basedir'] ) . $intermediate['path'];
+			}
+		}
+		return is_string( $path ) && '' !== $path ? $path : null;
 	}
 }

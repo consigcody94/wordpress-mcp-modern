@@ -97,6 +97,45 @@ final class MediaAbilitiesTest extends WP_UnitTestCase {
 		$this->assertSame( strlen( (string) base64_decode( self::PIXEL_PNG, true ) ), $file['file_bytes'] );
 	}
 
+	public function test_get_media_file_as_image_content_block(): void {
+		$uploaded = $this->ability( 'wordpress-mcp/wp-upload-media' )->execute(
+			array(
+				'filename' => 'pixel.png',
+				'data'     => self::PIXEL_PNG,
+			)
+		);
+		$id = (int) $uploaded['id'];
+
+		$result = $this->ability( 'wordpress-mcp/wp-get-media-file' )->execute(
+			array(
+				'id'       => $id,
+				'as_image' => true,
+			)
+		);
+		$this->assertSame( 'image', $result['type'] ?? null, 'as_image should return the mcp-adapter image envelope' );
+		$this->assertSame( 'image/png', $result['mimeType'] );
+		$this->assertSame( base64_decode( self::PIXEL_PNG, true ), $result['results'], 'results must be the raw file bytes' );
+	}
+
+	public function test_get_media_file_as_image_rejects_non_images(): void {
+		$uploaded = $this->ability( 'wordpress-mcp/wp-upload-media' )->execute(
+			array(
+				'filename' => 'note.txt',
+				'data'     => base64_encode( 'hello mcp' ),
+			)
+		);
+		$id = (int) $uploaded['id'];
+
+		$result = $this->ability( 'wordpress-mcp/wp-get-media-file' )->execute(
+			array(
+				'id'       => $id,
+				'as_image' => true,
+			)
+		);
+		$this->assertSame( 'not_an_image', $result['data_error'] ?? null );
+		$this->assertArrayNotHasKey( 'type', $result );
+	}
+
 	public function test_get_media_file_data_respects_size_limit(): void {
 		$uploaded = $this->ability( 'wordpress-mcp/wp-upload-media' )->execute(
 			array(

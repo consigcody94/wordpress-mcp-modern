@@ -16,12 +16,12 @@ WordPress MCP (Modern) exposes your site's capabilities to AI agents (Claude, Cu
 
 = Highlights =
 
-* **63 tools** — posts, pages, taxonomies, users, settings, custom post types, media (including base64 upload), plus 20 WooCommerce tools when WooCommerce is active.
+* **71 tools** — posts, pages, taxonomies, users, settings, custom post types, media (including base64 upload and native MCP image content blocks), plus 28 WooCommerce tools when WooCommerce is active.
 * **5 resources** — site, plugin, theme, user, and settings info.
 * **2 prompts** — `get-site-info` and `analyze-sales`.
 * **Two auth mechanisms** — WordPress Application Passwords (zero setup) and stateful, revocable HS256 JWTs with a management API and admin UI.
 * **HTTP (Streamable) and STDIO transports** via mcp-adapter.
-* **Fine-grained gating** — master enable switch, create/update/delete gates, and per-tool toggles from Settings → WordPress MCP.
+* **Fine-grained gating** — master enable switch, create/update/delete gates, and per-tool toggles from a React-powered Settings → WordPress MCP screen (with a no-JavaScript fallback).
 * **Legacy compatible** — tool names from Automattic/wordpress-mcp (`wp_posts_search`, `wc_get_product`, …) are preserved, and the `jwt-auth/v1` routes mirror the legacy API.
 
 = How it works =
@@ -51,7 +51,7 @@ Use a WordPress Application Password (HTTP Basic auth) or request a JWT from `PO
 
 = Does it work with WooCommerce? =
 
-Yes. Twenty WooCommerce tools (products, categories, tags, orders, sales reports) register automatically when WooCommerce is active.
+Yes. Twenty-eight WooCommerce tools (products, brands, categories, tags, full order CRUD, sales reports) register automatically when WooCommerce is active. Brand tools use the core brands taxonomy that ships in WooCommerce 9.4+.
 
 = Can I limit what AI agents can do? =
 

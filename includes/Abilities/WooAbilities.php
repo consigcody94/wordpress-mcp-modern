@@ -4,9 +4,10 @@ declare(strict_types=1);
 namespace WPMCP\Modern\Abilities;
 
 /**
- * WooCommerce capabilities, mirroring the legacy wordpress-mcp Woo tools. The
- * entire group is gated on WooCommerce being active: definitions() returns an
- * empty list when WooCommerce is absent, so nothing is registered or advertised.
+ * WooCommerce capabilities: the legacy wordpress-mcp Woo toolset plus product
+ * brands (core taxonomy since WooCommerce 9.4) and full order CRUD. The entire
+ * group is gated on WooCommerce being active: definitions() returns an empty
+ * list when WooCommerce is absent, so nothing is registered or advertised.
  */
 final class WooAbilities {
 
@@ -21,13 +22,21 @@ final class WooAbilities {
 	}
 
 	/**
+	 * Definitions, gated on WooCommerce being active.
+	 *
 	 * @return array<int,array<string,mixed>>
 	 */
 	public static function definitions(): array {
-		if ( ! self::woo_active() ) {
-			return array();
-		}
+		return self::woo_active() ? self::catalog() : array();
+	}
 
+	/**
+	 * The raw (ungated) tool catalog. Split from definitions() so the shape and
+	 * naming of every definition stays testable without WooCommerce installed.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function catalog(): array {
 		$ns   = AbilityRegistrar::NS;
 		$cap  = 'manage_woocommerce';
 		$defs = array();
@@ -132,11 +141,14 @@ final class WooAbilities {
 			),
 		);
 
-		// --- Product categories & tags (term CRUD) ---
+		// --- Product categories, tags & brands (term CRUD) ---
+		// Brands ship in WooCommerce core since 9.4 (/wc/v3/products/brands);
+		// on older versions the call returns a clean rest_no_route error.
 		foreach (
 			array(
 				array( 'route' => 'products/categories', 'sing' => 'product_category', 'plur' => 'product_categories', 'word' => 'product category' ),
 				array( 'route' => 'products/tags', 'sing' => 'product_tag', 'plur' => 'product_tags', 'word' => 'product tag' ),
+				array( 'route' => 'products/brands', 'sing' => 'product_brand', 'plur' => 'product_brands', 'word' => 'product brand' ),
 			) as $tax
 		) {
 			$sing_slug = str_replace( '_', '-', $tax['sing'] );
@@ -219,7 +231,7 @@ final class WooAbilities {
 			);
 		}
 
-		// --- Orders (read) ---
+		// --- Orders ---
 		$defs[] = array(
 			'name'         => "$ns/wc-orders-search",
 			'mcp_name'     => 'wc_orders_search',
@@ -238,6 +250,96 @@ final class WooAbilities {
 					'per_page' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 10 ),
 					'page'     => array( 'type' => 'integer', 'minimum' => 1, 'default' => 1 ),
 				),
+			),
+		);
+		$defs[] = array(
+			'name'         => "$ns/wc-get-order",
+			'mcp_name'     => 'wc_get_order',
+			'label'        => 'Get order',
+			'description'  => 'Retrieve a single WooCommerce order by ID.',
+			'type'         => 'read',
+			'method'       => 'GET',
+			'route'        => '/wc/v3/orders/{id}',
+			'capability'   => $cap,
+			'input_schema' => array(
+				'type'       => 'object',
+				'properties' => array( 'id' => array( 'type' => 'integer' ) ),
+				'required'   => array( 'id' ),
+			),
+		);
+
+		$address_schema = array(
+			'type'        => 'object',
+			'description' => 'Address object: first_name, last_name, company, address_1, address_2, city, state, postcode, country (and email/phone on billing).',
+		);
+		$order_fields   = array(
+			'status'        => array( 'type' => 'string', 'description' => 'Order status slug (e.g. pending, processing, completed, cancelled).' ),
+			'customer_id'   => array( 'type' => 'integer', 'description' => 'Customer user ID (0 for guest).' ),
+			'customer_note' => array( 'type' => 'string' ),
+			'set_paid'      => array( 'type' => 'boolean', 'description' => 'Mark the order as paid (completes payment without a gateway).' ),
+			'billing'       => $address_schema,
+			'shipping'      => $address_schema,
+		);
+		$defs[]         = array(
+			'name'         => "$ns/wc-add-order",
+			'mcp_name'     => 'wc_add_order',
+			'label'        => 'Add order',
+			'description'  => 'Create a new WooCommerce order with optional line items.',
+			'type'         => 'create',
+			'method'       => 'POST',
+			'route'        => '/wc/v3/orders',
+			'capability'   => $cap,
+			'input_schema' => array(
+				'type'       => 'object',
+				'properties' => array_merge(
+					$order_fields,
+					array(
+						'line_items' => array(
+							'type'        => 'array',
+							'description' => 'Products to add to the order.',
+							'items'       => array(
+								'type'       => 'object',
+								'properties' => array(
+									'product_id'   => array( 'type' => 'integer' ),
+									'variation_id' => array( 'type' => 'integer' ),
+									'quantity'     => array( 'type' => 'integer', 'minimum' => 1, 'default' => 1 ),
+								),
+								'required'   => array( 'product_id' ),
+							),
+						),
+					)
+				),
+			),
+		);
+		$defs[] = array(
+			'name'         => "$ns/wc-update-order",
+			'mcp_name'     => 'wc_update_order',
+			'label'        => 'Update order',
+			'description'  => 'Update an existing WooCommerce order by ID (status, note, addresses, paid state).',
+			'type'         => 'update',
+			'method'       => 'PUT',
+			'route'        => '/wc/v3/orders/{id}',
+			'capability'   => $cap,
+			'input_schema' => array(
+				'type'       => 'object',
+				'properties' => array_merge( array( 'id' => array( 'type' => 'integer' ) ), $order_fields ),
+				'required'   => array( 'id' ),
+			),
+		);
+		$defs[] = array(
+			'name'         => "$ns/wc-delete-order",
+			'mcp_name'     => 'wc_delete_order',
+			'label'        => 'Delete order',
+			'description'  => 'Permanently delete a WooCommerce order by ID.',
+			'type'         => 'delete',
+			'method'       => 'DELETE',
+			'route'        => '/wc/v3/orders/{id}',
+			'capability'   => $cap,
+			'extra_params' => array( 'force' => true ),
+			'input_schema' => array(
+				'type'       => 'object',
+				'properties' => array( 'id' => array( 'type' => 'integer' ) ),
+				'required'   => array( 'id' ),
 			),
 		);
 

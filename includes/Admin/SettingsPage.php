@@ -8,9 +8,11 @@ use WPMCP\Modern\Auth\JwtManager;
 use WPMCP\Modern\Mcp\ServerProvider;
 
 /**
- * Server-rendered admin screen under Settings -> WordPress MCP: master/CRUD/
- * REST-CRUD toggles, a per-tool enable table, and JWT token management. No build
- * step (vanilla WordPress admin markup + admin-post handlers).
+ * Admin screen under Settings -> WordPress MCP. Renders a server-side form
+ * (master/CRUD/REST-CRUD toggles, per-tool table, JWT management) that a React
+ * app — built on WordPress's bundled wp-element/wp-components, no build step —
+ * progressively replaces when JavaScript is available. The React app talks to
+ * the wpmcp/v1 settings routes and the jwt-auth/v1 token routes.
  */
 final class SettingsPage {
 
@@ -22,9 +24,40 @@ final class SettingsPage {
 
 	public static function register(): void {
 		add_action( 'admin_menu', array( self::class, 'add_menu' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_app' ) );
 		add_action( 'admin_post_' . self::SAVE_ACTION, array( self::class, 'handle_save' ) );
 		add_action( 'admin_post_' . self::TOKEN_ACTION, array( self::class, 'handle_generate_token' ) );
 		add_action( 'admin_post_' . self::REVOKE_ACTION, array( self::class, 'handle_revoke_token' ) );
+	}
+
+	/**
+	 * Enqueue the React settings app (WordPress-bundled React — no build step).
+	 */
+	public static function enqueue_app( string $hook ): void {
+		if ( 'settings_page_' . self::SLUG !== $hook ) {
+			return;
+		}
+
+		wp_enqueue_style( 'wp-components' );
+		wp_enqueue_script(
+			'wpmcp-settings-app',
+			WPMCP_MODERN_URL . 'assets/js/settings-app.js',
+			array( 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n' ),
+			WPMCP_MODERN_VERSION,
+			true
+		);
+		wp_add_inline_script(
+			'wpmcp-settings-app',
+			'window.wpmcpSettingsBoot = ' . (string) wp_json_encode(
+				array(
+					'endpoint'      => self::endpoint_url(),
+					'settingsPath'  => '/' . SettingsRestRoutes::NS . '/settings',
+					'tokensBase'    => '/' . \WPMCP\Modern\Auth\JwtRestRoutes::NS,
+					'maxExpiration' => JwtManager::max_expiration(),
+				)
+			) . ';',
+			'before'
+		);
 	}
 
 	public static function add_menu(): void {
@@ -51,6 +84,11 @@ final class SettingsPage {
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'WordPress MCP', 'wordpress-mcp-modern' ) . '</h1>';
+
+		// React mount point; the legacy form below stays as the no-JS fallback
+		// and is hidden by the app when it mounts.
+		echo '<div id="wpmcp-settings-app"></div>';
+		echo '<div id="wpmcp-legacy-settings">';
 
 		$notice = get_transient( self::NOTICE_TRANSIENT );
 		if ( $notice ) {
@@ -93,6 +131,7 @@ final class SettingsPage {
 
 		self::render_token_panel( $action );
 
+		echo '</div>'; // #wpmcp-legacy-settings
 		echo '</div>';
 	}
 
