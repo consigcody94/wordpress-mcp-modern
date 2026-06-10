@@ -12,7 +12,7 @@
 [![Tests](https://img.shields.io/badge/tests-PHPUnit%20in%20wp--env-3fb950)](#-testing--development)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
 
-| 🔧 **63** tools | 📚 **5** resources | 💬 **2** prompts | 🔐 **2** auth methods | 🔌 **2** transports | 🛒 WooCommerce-aware |
+| 🔧 **71** tools | 📚 **5** resources | 💬 **2** prompts | 🔐 **2** auth methods | 🔌 **2** transports | 🛒 WooCommerce-aware |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 
 **[Quick start](#-quick-start)** · **[Connect a client](#step-3--connect-your-ai-client)** · **[Tools](#-whats-exposed)** · **[Security](#%EF%B8%8F-security--gating)** · **[Extend it](#%EF%B8%8F-add-your-own-tool)** · **[FAQ](#-faq--troubleshooting)**
@@ -249,7 +249,7 @@ You can also generate, list, and revoke tokens visually from **Settings → Word
 
 ## 🧰 What's exposed
 
-**63 tools** (43 always-on + 20 WooCommerce when active), **5 resources**, **2 prompts**. Legacy tool names (`wp_posts_search`, `wc_get_product`, …) are preserved, so existing clients and prompts keep working.
+**71 tools** (43 always-on + 28 WooCommerce when active), **5 resources**, **2 prompts**. Legacy tool names (`wp_posts_search`, `wc_get_product`, …) are preserved, so existing clients and prompts keep working.
 
 ### 🔧 Tools
 
@@ -261,9 +261,9 @@ You can also generate, list, and revoke tokens visually from **Settings → Word
 | 👤 Users | 7 | `wp_users_search`, `wp_add_user`, `wp_get_current_user`, … |
 | ⚙️ Settings | 2 | `wp_get_general_settings`, `wp_update_general_settings` |
 | 🧩 Custom post types | 6 | `wp_list_post_types`, `wp_cpt_search`, `wp_add_cpt`, … |
-| 🖼️ Media | 7 | `wp_list_media`, `wp_upload_media` (base64 in), `wp_get_media_file` (URL + optional base64 out), … |
+| 🖼️ Media | 7 | `wp_list_media`, `wp_upload_media` (base64 in), `wp_get_media_file` (URL · base64 · native MCP image block), … |
 | 🧭 Core (reused) | 3 | `get_site_info`, `get_user_info`, `get_environment_info` |
-| 🛒 WooCommerce* | 20 | `wc_products_search`, `wc_add_product`, `wc_orders_search`, `wc_reports_sales`, … |
+| 🛒 WooCommerce* | 28 | `wc_products_search`, `wc_add_product`, `wc_list_product_brands`, `wc_add_order`, `wc_reports_sales`, … |
 | 🧪 Generic (REST-CRUD mode) | 3 | `list_api_functions`, `get_function_details`, `run_api_function` |
 
 <sub>*WooCommerce tools register only when WooCommerce is active. The generic REST-CRUD tools appear only in REST-CRUD mode (see [Security & gating](#%EF%B8%8F-security--gating)).</sub>
@@ -295,7 +295,7 @@ flowchart TB
     A --> B --> C --> D
 ```
 
-Control layer 1 from **Settings → WordPress MCP**:
+Control layer 1 from **Settings → WordPress MCP** — a React app (WordPress's bundled components, with a no-JS fallback form) offering:
 
 - **Master enable** — toggle the whole MCP surface on/off.
 - **Create / Update / Delete gates** — read & action tools are always on; write tools are gated by type, so you can run a read-only server with one click.
@@ -415,7 +415,8 @@ wordpress-mcp-modern/
 │   │   ├── ResourceAbility.php  ·  PromptAbility.php
 │   │   └── {Content,Taxonomy,Users,Settings,Cpt,Media,Woo,Resource,Prompt,RestCrud}Abilities.php
 │   ├── Auth/                         # JwtManager · JwtRestRoutes · TransportPermission
-│   └── Admin/                        # SettingsStore · SettingsPage
+│   └── Admin/                        # SettingsStore · SettingsPage · SettingsRestRoutes
+├── assets/js/settings-app.js         # React settings UI (wp-element, no build step)
 ├── tests/                            # PHPUnit (runs in wp-env)
 └── docs/superpowers/specs/           # understanding + design docs
 ```
@@ -476,11 +477,24 @@ Only what the connected user's role allows, only through tools you've left enabl
 
 ## 🗺️ Roadmap
 
+### ✅ Shipped
+
 - [x] Inline file data for `wp_get_media_file` (`include_data: true` → base64, size-capped via the `wpmcp_media_file_max_bytes` filter)
 - [x] Packaged release `.zip` (built by the Release workflow on every `v*` tag) + WordPress.org `readme.txt`
-- [ ] Native MCP image **content blocks** for media tools
-- [ ] WooCommerce **Brands** + order write tools
-- [ ] Optional **React** settings UI for full visual parity
+- [x] Native MCP **image content blocks** — `wp_get_media_file` with `as_image: true` returns a real `ImageContent` block, so clients render the image instead of JSON
+- [x] WooCommerce **Brands** (term CRUD over `/wc/v3/products/brands`, WooCommerce 9.4+) + **order write tools** (`wc_get_order`, `wc_add_order`, `wc_update_order`, `wc_delete_order`) — 28 Woo tools total
+- [x] **React settings UI** — built on WordPress's bundled `wp-element`/`wp-components` (no build step), backed by `wpmcp/v1` REST routes, with the server-rendered form kept as the no-JS fallback
+
+### 🔭 Up next
+
+- [ ] **Audio & binary content blocks** — extend the `as_image` pattern to audio (`AudioContent`) and arbitrary files (blob `EmbeddedResource`), which mcp-adapter already supports
+- [ ] **Comments tools** — list, moderate, and reply to comments
+- [ ] **Plugin & theme management tools** — list, activate/deactivate (admin-gated)
+- [ ] **Tool-call audit log & rate limiting** — building on mcp-adapter's `mcp_adapter_tool_call_result` filter
+- [ ] **MCP authorization spec (OAuth 2.1)** alongside JWT + Application Passwords
+- [ ] **Multisite support** — per-site servers and network-level settings
+- [ ] **WP-CLI commands** for token + settings management (scriptable provisioning)
+- [ ] **WordPress.org plugin directory submission** (plugin-check clean)
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md), or open an [issue](https://github.com/consigcody94/wordpress-mcp-modern/issues). 💚
 

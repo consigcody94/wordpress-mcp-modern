@@ -10,7 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `wp_get_media_file` now accepts `include_data: true` to return the file contents
-  base64-encoded (capped at 5 MB by default, filterable via `wpmcp_media_file_max_bytes`).
+  base64-encoded (capped at 5 MB by default, filterable via `wpmcp_media_file_max_bytes`),
+  and `as_image: true` to return images as a **native MCP image content block**
+  (rendered inline by MCP clients instead of JSON).
+- **8 new WooCommerce tools** (28 total): product brands CRUD
+  (`wc_list_product_brands`, `wc_add_product_brand`, `wc_update_product_brand`,
+  `wc_delete_product_brand` — WooCommerce 9.4+ core brands) and order
+  read/write (`wc_get_order`, `wc_add_order`, `wc_update_order`, `wc_delete_order`).
+  Total tool count is now 71.
+- **React settings UI** on WordPress's bundled `wp-element`/`wp-components`
+  (no build step), backed by new `wpmcp/v1/settings` REST routes; the
+  server-rendered form remains as the no-JS fallback.
 - WordPress.org-format `readme.txt`.
 - Release workflow: pushing a `v*` tag builds the distributable plugin zip
   (with bundled Composer dependencies) and attaches it to a GitHub Release.
