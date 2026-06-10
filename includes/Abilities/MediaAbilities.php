@@ -202,6 +202,7 @@ final class MediaAbilities {
 						'size'         => array( 'type' => 'string', 'enum' => array( 'thumbnail', 'medium', 'large', 'full' ), 'default' => 'full' ),
 						'include_data' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Include the file contents base64-encoded in the "data" field (subject to a size limit).' ),
 						'as_image'     => array( 'type' => 'boolean', 'default' => false, 'description' => 'Return the file as a native MCP image content block instead of JSON metadata (images only; subject to the same size limit). Takes precedence over include_data.' ),
+						'as_resource'  => array( 'type' => 'boolean', 'default' => false, 'description' => 'Return the file (any type — audio, PDF, archives…) as an MCP embedded blob resource instead of JSON metadata (subject to the same size limit). as_image takes precedence for images.' ),
 					),
 					'required'   => array( 'id' ),
 				),
@@ -223,8 +224,9 @@ final class MediaAbilities {
 						'height' => $src[2] ?? null,
 					);
 
-					$as_image = ! empty( $input['as_image'] );
-					if ( ! $as_image && empty( $input['include_data'] ) ) {
+					$as_image    = ! empty( $input['as_image'] );
+					$as_resource = ! empty( $input['as_resource'] );
+					if ( ! $as_image && ! $as_resource && empty( $input['include_data'] ) ) {
 						return $out;
 					}
 
@@ -253,6 +255,21 @@ final class MediaAbilities {
 							'type'     => 'image',
 							'results'  => (string) file_get_contents( $path ),
 							'mimeType' => $mime,
+						);
+					}
+
+					if ( $as_resource ) {
+						// ToolsHandler turns this envelope into an EmbeddedResource block
+						// (blob must be base64 already). Used for audio + arbitrary binaries;
+						// mcp-adapter 0.5 has no AudioContent envelope, so audio ships as a
+						// blob resource too.
+						return array(
+							'type'     => 'resource',
+							'resource' => array(
+								'uri'      => (string) $out['url'],
+								'blob'     => base64_encode( (string) file_get_contents( $path ) ),
+								'mimeType' => $mime,
+							),
 						);
 					}
 

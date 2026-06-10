@@ -136,6 +136,28 @@ final class MediaAbilitiesTest extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'type', $result );
 	}
 
+	public function test_get_media_file_as_resource_blob_block(): void {
+		$payload  = 'binary-ish payload for the blob resource';
+		$uploaded = $this->ability( 'wordpress-mcp/wp-upload-media' )->execute(
+			array(
+				'filename' => 'note.txt',
+				'data'     => base64_encode( $payload ),
+			)
+		);
+		$id = (int) $uploaded['id'];
+
+		$result = $this->ability( 'wordpress-mcp/wp-get-media-file' )->execute(
+			array(
+				'id'          => $id,
+				'as_resource' => true,
+			)
+		);
+		$this->assertSame( 'resource', $result['type'] ?? null, 'as_resource should return the mcp-adapter resource envelope' );
+		$this->assertSame( 'text/plain', $result['resource']['mimeType'] );
+		$this->assertNotEmpty( $result['resource']['uri'] );
+		$this->assertSame( $payload, base64_decode( $result['resource']['blob'], true ), 'blob must be the base64-encoded file contents' );
+	}
+
 	public function test_get_media_file_data_respects_size_limit(): void {
 		$uploaded = $this->ability( 'wordpress-mcp/wp-upload-media' )->execute(
 			array(
