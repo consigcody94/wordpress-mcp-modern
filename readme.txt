@@ -16,10 +16,12 @@ WordPress MCP (Modern) exposes your site's capabilities to AI agents (Claude, Cu
 
 = Highlights =
 
-* **71 tools** — posts, pages, taxonomies, users, settings, custom post types, media (including base64 upload and native MCP image content blocks), plus 28 WooCommerce tools when WooCommerce is active.
+* **82 tools** — posts, pages, taxonomies, users, settings, custom post types, comments, plugins & themes, media (including base64 upload and native MCP image/blob content blocks), plus 28 WooCommerce tools when WooCommerce is active.
 * **5 resources** — site, plugin, theme, user, and settings info.
 * **2 prompts** — `get-site-info` and `analyze-sales`.
-* **Two auth mechanisms** — WordPress Application Passwords (zero setup) and stateful, revocable HS256 JWTs with a management API and admin UI.
+* **Three auth mechanisms** — WordPress Application Passwords (zero setup), stateful revocable HS256 JWTs with a management API and admin UI, and experimental opt-in OAuth 2.1 (PKCE + dynamic client registration) for clients with built-in OAuth flows.
+* **Observability** — optional tool-call audit log and per-user rate limiting.
+* **Operations-friendly** — WP-CLI commands (`wp wpmcp token|settings|tools`) and a multisite network kill switch.
 * **HTTP (Streamable) and STDIO transports** via mcp-adapter.
 * **Fine-grained gating** — master enable switch, create/update/delete gates, and per-tool toggles from a React-powered Settings → WordPress MCP screen (with a no-JavaScript fallback).
 * **Legacy compatible** — tool names from Automattic/wordpress-mcp (`wp_posts_search`, `wc_get_product`, …) are preserved, and the `jwt-auth/v1` routes mirror the legacy API.

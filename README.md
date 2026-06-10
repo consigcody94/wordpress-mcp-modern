@@ -12,7 +12,7 @@
 [![Tests](https://img.shields.io/badge/tests-PHPUnit%20in%20wp--env-3fb950)](#-testing--development)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
 
-| 🔧 **71** tools | 📚 **5** resources | 💬 **2** prompts | 🔐 **2** auth methods | 🔌 **2** transports | 🛒 WooCommerce-aware |
+| 🔧 **82** tools | 📚 **5** resources | 💬 **2** prompts | 🔐 **3** auth methods | 🔌 **2** transports | 🛒 WooCommerce-aware |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 
 **[Quick start](#-quick-start)** · **[Connect a client](#step-3--connect-your-ai-client)** · **[Tools](#-whats-exposed)** · **[Security](#%EF%B8%8F-security--gating)** · **[Extend it](#%EF%B8%8F-add-your-own-tool)** · **[FAQ](#-faq--troubleshooting)**
@@ -210,15 +210,15 @@ Or simply ask your connected AI: *"What WordPress tools do you have?"* — it sh
 
 ## 🔐 Authentication
 
-Two interchangeable mechanisms, enforced by the server's transport-permission callback. Use whichever fits:
+Three interchangeable mechanisms, enforced by the server's transport-permission callback. Use whichever fits:
 
-| | 🔑 Application Passwords | 🎫 JWT |
-| --- | --- | --- |
-| **Setup** | None — built into WordPress | Issue via REST route or admin UI |
-| **Format** | HTTP Basic auth | `Authorization: Bearer <jwt>` |
-| **Lifetime** | Until you delete it | 1 hour by default, up to 30 days |
-| **Revocation** | Delete from your profile | Instant, per-token (`jti`) — independent of expiry |
-| **Best for** | Personal use, the proxy setup | Short-lived agents, CI, shared automations |
+| | 🔑 Application Passwords | 🎫 JWT | 🌐 OAuth 2.1 *(experimental)* |
+| --- | --- | --- | --- |
+| **Setup** | None — built into WordPress | Issue via REST route or admin UI | Enable the toggle; clients self-register |
+| **Format** | HTTP Basic auth | `Authorization: Bearer <jwt>` | Bearer token (a plugin JWT under the hood) |
+| **Lifetime** | Until you delete it | 1 hour by default, up to 30 days | 1 day by default (filterable) |
+| **Revocation** | Delete from your profile | Instant, per-token (`jti`) — independent of expiry | Same as JWT — same registry |
+| **Best for** | Personal use, the proxy setup | Short-lived agents, CI, shared automations | Clients with built-in OAuth flows — no token pasting |
 
 ### Application Passwords (recommended start)
 
@@ -245,11 +245,23 @@ define( 'WPMCP_JWT_SECRET_KEY', 'a-long-random-string' );
 
 You can also generate, list, and revoke tokens visually from **Settings → WordPress MCP**.
 
+### OAuth 2.1 (experimental, opt-in)
+
+Turn on **OAuth 2.1 authorization** in Settings → WordPress MCP and OAuth-capable MCP clients can connect with zero token copy-pasting. The plugin implements the slice of the [MCP authorization spec](https://modelcontextprotocol.io/specification/draft/basic/authorization) clients exercise:
+
+1. **Discovery** — `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` (RFC 8414/9728; no rewrite rules needed).
+2. **Dynamic client registration** — `POST /wp-json/wpmcp/v1/oauth/register` (RFC 7591, public clients).
+3. **Authorization code + PKCE (S256 only)** — a WordPress consent screen asks the logged-in user to approve the client.
+4. **Token exchange** — `POST /wp-json/wpmcp/v1/oauth/token` returns a **plugin JWT**, so OAuth tokens are validated, listed, and revoked through the exact same machinery as manually issued ones.
+
+> [!NOTE]
+> No refresh tokens yet — access tokens default to 1 day (`wpmcp_oauth_token_expiration` filter), after which the client re-runs the (one-click) consent flow.
+
 ---
 
 ## 🧰 What's exposed
 
-**71 tools** (43 always-on + 28 WooCommerce when active), **5 resources**, **2 prompts**. Legacy tool names (`wp_posts_search`, `wc_get_product`, …) are preserved, so existing clients and prompts keep working.
+**82 tools** (54 always-on + 28 WooCommerce when active), **5 resources**, **2 prompts**. Legacy tool names (`wp_posts_search`, `wc_get_product`, …) are preserved, so existing clients and prompts keep working.
 
 ### 🔧 Tools
 
@@ -261,7 +273,9 @@ You can also generate, list, and revoke tokens visually from **Settings → Word
 | 👤 Users | 7 | `wp_users_search`, `wp_add_user`, `wp_get_current_user`, … |
 | ⚙️ Settings | 2 | `wp_get_general_settings`, `wp_update_general_settings` |
 | 🧩 Custom post types | 6 | `wp_list_post_types`, `wp_cpt_search`, `wp_add_cpt`, … |
-| 🖼️ Media | 7 | `wp_list_media`, `wp_upload_media` (base64 in), `wp_get_media_file` (URL · base64 · native MCP image block), … |
+| 🖼️ Media | 7 | `wp_list_media`, `wp_upload_media` (base64 in), `wp_get_media_file` (URL · base64 · image/blob content blocks), … |
+| 💬 Comments | 6 | `wp_comments_search`, `wp_add_comment` (reply via `parent`), `wp_moderate_comment`, … |
+| 🔌 Plugins & themes | 5 | `wp_list_plugins`, `wp_activate_plugin`, `wp_deactivate_plugin` (never itself), `wp_activate_theme`, … |
 | 🧭 Core (reused) | 3 | `get_site_info`, `get_user_info`, `get_environment_info` |
 | 🛒 WooCommerce* | 28 | `wc_products_search`, `wc_add_product`, `wc_list_product_brands`, `wc_add_order`, `wc_reports_sales`, … |
 | 🧪 Generic (REST-CRUD mode) | 3 | `list_api_functions`, `get_function_details`, `run_api_function` |
@@ -301,6 +315,18 @@ Control layer 1 from **Settings → WordPress MCP** — a React app (WordPress's
 - **Create / Update / Delete gates** — read & action tools are always on; write tools are gated by type, so you can run a read-only server with one click.
 - **Per-tool toggles** — disable any individual tool.
 - **🧪 REST-CRUD mode** — replaces the curated toolset with three generic "call any REST route" tools (`list_api_functions`, `get_function_details`, `run_api_function`), with per-method gating still enforced.
+- **📋 Audit log** — record every tool call (time, user, tool, outcome) into a ring buffer, browsable from the settings screen and `GET /wpmcp/v1/audit`.
+- **⏱️ Rate limiting** — cap tool calls per user per minute (default 60, `wpmcp_rate_limit_per_minute` filter); over-budget calls are short-circuited with a 429 before they execute.
+
+On **multisite**, a network-admin kill switch (Network Settings → WordPress MCP) overrides every per-site setting, and everything is also scriptable via **WP-CLI**:
+
+```bash
+wp wpmcp settings list                      # all toggles
+wp wpmcp settings set enable_delete_tools 0
+wp wpmcp tools disable wp_delete_post      # per-tool gating
+wp wpmcp token generate --user=admin --expires-in=86400
+wp wpmcp token revoke <jti>
+```
 
 > [!NOTE]
 > Gating is applied **where the server is built**, not filtered at call time — a disabled capability never appears in `tools/list`, so a client can't even attempt it. And because every tool runs as the authenticated WordPress user, an AI agent can never exceed the role of the account it connects with: connect with an Editor account and it simply cannot manage users or plugins.
@@ -414,8 +440,10 @@ wordpress-mcp-modern/
 │   │   ├── NativeAbility.php         # callback-backed ability
 │   │   ├── ResourceAbility.php  ·  PromptAbility.php
 │   │   └── {Content,Taxonomy,Users,Settings,Cpt,Media,Woo,Resource,Prompt,RestCrud}Abilities.php
-│   ├── Auth/                         # JwtManager · JwtRestRoutes · TransportPermission
-│   └── Admin/                        # SettingsStore · SettingsPage · SettingsRestRoutes
+│   ├── Auth/                         # JwtManager · JwtRestRoutes · TransportPermission · OAuthProvider
+│   ├── Admin/                        # SettingsStore · SettingsPage · SettingsRestRoutes · NetworkSettingsPage
+│   ├── Observability/AuditLog.php    # tool-call audit log + rate limiting
+│   └── Cli/Commands.php              # wp wpmcp token|settings|tools
 ├── assets/js/settings-app.js         # React settings UI (wp-element, no build step)
 ├── tests/                            # PHPUnit (runs in wp-env)
 └── docs/superpowers/specs/           # understanding + design docs
@@ -485,16 +513,21 @@ Only what the connected user's role allows, only through tools you've left enabl
 - [x] WooCommerce **Brands** (term CRUD over `/wc/v3/products/brands`, WooCommerce 9.4+) + **order write tools** (`wc_get_order`, `wc_add_order`, `wc_update_order`, `wc_delete_order`) — 28 Woo tools total
 - [x] **React settings UI** — built on WordPress's bundled `wp-element`/`wp-components` (no build step), backed by `wpmcp/v1` REST routes, with the server-rendered form kept as the no-JS fallback
 
+- [x] **Audio & binary content blocks** — `wp_get_media_file` with `as_resource: true` returns any file as an embedded blob resource (audio included; mcp-adapter 0.5 exposes no `AudioContent` envelope, so audio ships as a blob, which MCP clients handle)
+- [x] **Comments tools** — search, read, add (reply via `parent`), edit, moderate (approve/hold/spam/trash), delete
+- [x] **Plugin & theme management tools** — list/activate/deactivate plugins and list/switch themes, gated on `activate_plugins`/`switch_themes`; the plugin refuses to deactivate *itself* so an agent can't cut its own connection
+- [x] **Tool-call audit log & rate limiting** — opt-in toggles; ring-buffer log surfaced in the settings UI + `GET /wpmcp/v1/audit`, and a per-user-per-minute budget enforced via `mcp_adapter_pre_tool_call` (429 before execution)
+- [x] **OAuth 2.1 authorization** *(experimental, opt-in)* — discovery metadata, dynamic client registration, PKCE-only code flow with a consent screen, tokens issued as revocable plugin JWTs
+- [x] **Multisite support** — network-admin kill switch overriding per-site settings
+- [x] **WP-CLI commands** — `wp wpmcp token|settings|tools …` for scriptable provisioning
+- [x] **WordPress.org readiness** — Plugin Check now gates CI (errors fail the build); the actual directory submission — and the rename it requires (names can't lead with "WordPress") — is a maintainer step
+
 ### 🔭 Up next
 
-- [ ] **Audio & binary content blocks** — extend the `as_image` pattern to audio (`AudioContent`) and arbitrary files (blob `EmbeddedResource`), which mcp-adapter already supports
-- [ ] **Comments tools** — list, moderate, and reply to comments
-- [ ] **Plugin & theme management tools** — list, activate/deactivate (admin-gated)
-- [ ] **Tool-call audit log & rate limiting** — building on mcp-adapter's `mcp_adapter_tool_call_result` filter
-- [ ] **MCP authorization spec (OAuth 2.1)** alongside JWT + Application Passwords
-- [ ] **Multisite support** — per-site servers and network-level settings
-- [ ] **WP-CLI commands** for token + settings management (scriptable provisioning)
-- [ ] **WordPress.org plugin directory submission** (plugin-check clean)
+- [ ] **OAuth refresh tokens** + a consent/clients management panel in the settings UI
+- [ ] **Native `AudioContent` blocks** once mcp-adapter adds an audio result envelope
+- [ ] **Per-tool rate budgets** and audit-log export
+- [ ] **MCP elicitation & sampling** support as the adapter exposes them
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md), or open an [issue](https://github.com/consigcody94/wordpress-mcp-modern/issues). 💚
 

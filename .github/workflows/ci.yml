@@ -36,6 +36,25 @@ jobs:
             | xargs -0 -n1 -P4 php -l > /dev/null
           echo "All PHP files pass syntax check on PHP ${{ matrix.php }}."
 
+  plugin-check:
+    name: Plugin Check (wp.org readiness)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install production dependencies
+        run: docker run --rm -v "$PWD":/app -w /app composer:2 install --no-dev --no-interaction --no-progress
+
+      - name: Run plugin check
+        uses: WordPress/plugin-check-action@v1
+        with:
+          # Errors gate the build; warnings are advisory. The trademarks check
+          # is excluded: renaming for directory submission is a maintainer call.
+          ignore-warnings: true
+          exclude-checks: trademarks
+          exclude-directories: docs,tests
+
   test:
     name: PHPUnit (wp-env)
     runs-on: ubuntu-latest

@@ -21,6 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **React settings UI** on WordPress's bundled `wp-element`/`wp-components`
   (no build step), backed by new `wpmcp/v1/settings` REST routes; the
   server-rendered form remains as the no-JS fallback.
+- `wp_get_media_file as_resource: true` returns any file (audio, PDFs, archives…)
+  as an MCP embedded blob resource content block.
+- **6 comments tools**: search, get, add (reply via `parent`), update,
+  moderate (approve/hold/spam/trash), delete.
+- **5 plugin/theme tools** (admin-gated): list/activate/deactivate plugins
+  (self-deactivation refused) and list/switch themes. Total: **82 tools**.
+- **Audit log** (opt-in): ring-buffer record of tool calls, shown in the
+  settings UI and at `GET /wpmcp/v1/audit`.
+- **Rate limiting** (opt-in): per-user per-minute tool-call budget
+  (`wpmcp_rate_limit_per_minute`, default 60) enforced before execution (429).
+- **OAuth 2.1 authorization** (experimental, opt-in): RFC 8414/9728 discovery,
+  RFC 7591 dynamic client registration, PKCE-only authorization-code flow with
+  a consent screen; access tokens are the plugin's revocable JWTs.
+- **WP-CLI commands**: `wp wpmcp token generate|list|revoke`,
+  `wp wpmcp settings list|set`, `wp wpmcp tools list|enable|disable`.
+- **Multisite**: network-admin kill switch (`Network Settings → WordPress MCP`)
+  that overrides per-site settings.
+- **Plugin Check CI job** (errors gate the build) toward WordPress.org readiness.
 - WordPress.org-format `readme.txt`.
 - Release workflow: pushing a `v*` tag builds the distributable plugin zip
   (with bundled Composer dependencies) and attaches it to a GitHub Release.
