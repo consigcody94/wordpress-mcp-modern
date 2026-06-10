@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build plugin zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          # Minimum supported PHP, so the bundled vendor/ works everywhere.
+          php-version: '8.0'
+          tools: composer:v2
+
+      - name: Install production dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      - name: Build distributable zip
+        run: |
+          mkdir -p dist/wordpress-mcp-modern
+          rsync -a ./ dist/wordpress-mcp-modern/ --exclude-from=.distignore --exclude=/dist
+          cd dist
+          zip -rq wordpress-mcp-modern.zip wordpress-mcp-modern
+          unzip -l wordpress-mcp-modern.zip | tail -n 3
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordpress-mcp-modern
+          path: dist/wordpress-mcp-modern.zip
+
+      - name: Attach zip to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/wordpress-mcp-modern.zip
+          generate_release_notes: true
