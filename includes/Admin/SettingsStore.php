@@ -24,6 +24,9 @@ final class SettingsStore {
 			'enable_update_tools'        => true,
 			'enable_delete_tools'        => true,
 			'enable_rest_api_crud_tools' => false,
+			'enable_audit_log'           => false,
+			'enable_rate_limiting'       => false,
+			'enable_oauth'               => false,
 		);
 	}
 
@@ -41,6 +44,10 @@ final class SettingsStore {
 	}
 
 	public static function is_enabled(): bool {
+		// Multisite: the network kill switch overrides per-site settings.
+		if ( is_multisite() && ! (bool) get_site_option( NetworkSettingsPage::OPTION, true ) ) {
+			return false;
+		}
 		return self::get( 'enabled' );
 	}
 

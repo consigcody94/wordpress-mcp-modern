@@ -61,6 +61,21 @@
 			label: __( 'Experimental: REST-CRUD mode', 'wordpress-mcp-modern' ),
 			help: __( 'Replace the curated toolset with three generic "call any REST route" tools.', 'wordpress-mcp-modern' ),
 		},
+		{
+			key: 'enable_audit_log',
+			label: __( 'Audit log', 'wordpress-mcp-modern' ),
+			help: __( 'Record every tool call (time, user, tool, outcome) — last 100 shown below.', 'wordpress-mcp-modern' ),
+		},
+		{
+			key: 'enable_rate_limiting',
+			label: __( 'Rate limiting', 'wordpress-mcp-modern' ),
+			help: __( 'Cap tool calls per user per minute (default 60, filterable).', 'wordpress-mcp-modern' ),
+		},
+		{
+			key: 'enable_oauth',
+			label: __( 'Experimental: OAuth 2.1 authorization', 'wordpress-mcp-modern' ),
+			help: __( 'Let MCP clients connect via OAuth (PKCE + dynamic client registration) instead of pasting tokens.', 'wordpress-mcp-modern' ),
+		},
 	];
 
 	var EXPIRY_OPTIONS = [
@@ -104,6 +119,10 @@
 		var expiresIn = expiresState[ 0 ];
 		var setExpiresIn = expiresState[ 1 ];
 
+		var auditState = useState( null ); // { enabled, entries }
+		var audit = auditState[ 0 ];
+		var setAudit = auditState[ 1 ];
+
 		function fail( error ) {
 			setNotice( {
 				status: 'error',
@@ -119,9 +138,18 @@
 				.catch( fail );
 		}
 
+		function refreshAudit() {
+			apiFetch( { path: SETTINGS_PATH.replace( /\/settings$/, '/audit' ) } )
+				.then( setAudit )
+				.catch( function () {
+					setAudit( null );
+				} );
+		}
+
 		useEffect( function () {
 			apiFetch( { path: SETTINGS_PATH } ).then( setData ).catch( fail );
 			refreshTokens();
+			refreshAudit();
 		}, [] );
 
 		if ( ! data ) {
@@ -447,7 +475,71 @@
 						)
 					)
 				)
-			)
+			),
+
+			// --- Audit log ---
+			audit &&
+				audit.enabled &&
+				el(
+					Card,
+					{ style: { marginTop: '1.5em' } },
+					el(
+						CardHeader,
+						null,
+						el( 'strong', null, __( 'Recent tool calls', 'wordpress-mcp-modern' ) ),
+						el(
+							Button,
+							{ variant: 'tertiary', onClick: refreshAudit },
+							__( 'Refresh', 'wordpress-mcp-modern' )
+						)
+					),
+					el(
+						CardBody,
+						null,
+						el(
+							'table',
+							{ className: 'widefat striped' },
+							el(
+								'thead',
+								null,
+								el(
+									'tr',
+									null,
+									el( 'th', null, __( 'Time', 'wordpress-mcp-modern' ) ),
+									el( 'th', null, __( 'User', 'wordpress-mcp-modern' ) ),
+									el( 'th', null, __( 'Tool', 'wordpress-mcp-modern' ) ),
+									el( 'th', null, __( 'Result', 'wordpress-mcp-modern' ) )
+								)
+							),
+							el(
+								'tbody',
+								null,
+								audit.entries.length === 0 &&
+									el(
+										'tr',
+										null,
+										el( 'td', { colSpan: 4 }, __( 'No tool calls recorded yet.', 'wordpress-mcp-modern' ) )
+									),
+								audit.entries.map( function ( entry, index ) {
+									return el(
+										'tr',
+										{ key: index },
+										el( 'td', null, formatDate( entry.time ) ),
+										el( 'td', null, String( entry.user_id ) ),
+										el( 'td', null, el( 'code', null, entry.tool ) ),
+										el(
+											'td',
+											null,
+											entry.ok
+												? '✓ ' + __( 'ok', 'wordpress-mcp-modern' )
+												: '✗ ' + __( 'error', 'wordpress-mcp-modern' )
+										)
+									);
+								} )
+							)
+						)
+					)
+				)
 		);
 	}
 

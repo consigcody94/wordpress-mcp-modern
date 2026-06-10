@@ -4,10 +4,13 @@ declare(strict_types=1);
 namespace WPMCP\Modern;
 
 use WPMCP\Modern\Abilities\AbilityRegistrar;
+use WPMCP\Modern\Admin\NetworkSettingsPage;
 use WPMCP\Modern\Admin\SettingsPage;
 use WPMCP\Modern\Admin\SettingsRestRoutes;
 use WPMCP\Modern\Auth\JwtRestRoutes;
+use WPMCP\Modern\Auth\OAuthProvider;
 use WPMCP\Modern\Mcp\ServerProvider;
+use WPMCP\Modern\Observability\AuditLog;
 
 /**
  * Top-level orchestrator: registers the ability category and wires the MCP server.
@@ -30,7 +33,15 @@ final class Plugin {
 		add_action( 'mcp_adapter_init', array( ServerProvider::class, 'create' ) );
 		add_action( 'rest_api_init', array( JwtRestRoutes::class, 'register' ) );
 		add_action( 'rest_api_init', array( SettingsRestRoutes::class, 'register' ) );
+		AuditLog::register();
+		OAuthProvider::register();
 		SettingsPage::register();
+		if ( is_multisite() ) {
+			NetworkSettingsPage::register();
+		}
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			\WP_CLI::add_command( 'wpmcp', \WPMCP\Modern\Cli\Commands::class );
+		}
 	}
 
 	public function register_category(): void {

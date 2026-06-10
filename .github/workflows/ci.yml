@@ -36,6 +36,45 @@ jobs:
             | xargs -0 -n1 -P4 php -l > /dev/null
           echo "All PHP files pass syntax check on PHP ${{ matrix.php }}."
 
+  plugin-check:
+    name: Plugin Check (wp.org readiness)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install production dependencies
+        run: docker run --rm -v "$PWD":/app -w /app composer:2 install --no-dev --no-interaction --no-progress
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Start WordPress environment
+        run: npx --yes @wordpress/env start
+
+      - name: Install Plugin Check
+        run: npx --yes @wordpress/env run cli wp plugin install plugin-check --activate
+
+      # Errors gate the build; warnings are advisory. Excluded: trademarks
+      # (the rename for directory submission is a maintainer call), vendor
+      # (third-party libraries reviewed upstream), non-shipping dirs, and the
+      # dev files that .distignore already keeps out of the release zip.
+      # `wp plugin check` exits 0 even with findings, so grep enforces the gate.
+      - name: Run plugin check
+        run: |
+          OUTPUT=$(npx --yes @wordpress/env run cli wp plugin check wordpress-mcp-modern \
+            --ignore-warnings \
+            --exclude-checks=trademarks \
+            --exclude-directories=docs,tests,vendor,node_modules \
+            --exclude-files=.wp-env.json,.editorconfig,phpunit.xml.dist 2>&1)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -qP '\tERROR\t'; then
+            echo '::error::Plugin Check reported errors (see output above).'
+            exit 1
+          fi
+
   test:
     name: PHPUnit (wp-env)
     runs-on: ubuntu-latest
