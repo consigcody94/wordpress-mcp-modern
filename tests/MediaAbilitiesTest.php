@@ -76,4 +76,46 @@ final class MediaAbilitiesTest extends WP_UnitTestCase {
 		$result = $this->ability( 'wordpress-mcp/wp-get-media-file' )->execute( array( 'id' => 999999 ) );
 		$this->assertSame( 'not_found', $result['error'] ?? null );
 	}
+
+	public function test_get_media_file_with_inline_data(): void {
+		$uploaded = $this->ability( 'wordpress-mcp/wp-upload-media' )->execute(
+			array(
+				'filename' => 'pixel.png',
+				'data'     => self::PIXEL_PNG,
+			)
+		);
+		$id = (int) $uploaded['id'];
+
+		$file = $this->ability( 'wordpress-mcp/wp-get-media-file' )->execute(
+			array(
+				'id'           => $id,
+				'include_data' => true,
+			)
+		);
+		$this->assertArrayHasKey( 'data', $file, 'include_data should add a base64 data field' );
+		$this->assertSame( base64_decode( self::PIXEL_PNG, true ), base64_decode( $file['data'], true ) );
+		$this->assertSame( strlen( (string) base64_decode( self::PIXEL_PNG, true ) ), $file['file_bytes'] );
+	}
+
+	public function test_get_media_file_data_respects_size_limit(): void {
+		$uploaded = $this->ability( 'wordpress-mcp/wp-upload-media' )->execute(
+			array(
+				'filename' => 'pixel.png',
+				'data'     => self::PIXEL_PNG,
+			)
+		);
+		$id = (int) $uploaded['id'];
+
+		add_filter( 'wpmcp_media_file_max_bytes', static fn() => 1 );
+		$file = $this->ability( 'wordpress-mcp/wp-get-media-file' )->execute(
+			array(
+				'id'           => $id,
+				'include_data' => true,
+			)
+		);
+		remove_all_filters( 'wpmcp_media_file_max_bytes' );
+
+		$this->assertSame( 'file_too_large', $file['data_error'] ?? null );
+		$this->assertArrayNotHasKey( 'data', $file );
+	}
 }
