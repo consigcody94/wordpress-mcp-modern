@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace WPMCP\Modern\Admin;
 
 use WPMCP\Modern\Abilities\AbilityRegistrar;
+use WPMCP\Modern\Observability\AuditLog;
 
 /**
  * REST routes backing the React settings app:
@@ -31,6 +32,24 @@ final class SettingsRestRoutes {
 					'permission_callback' => array( self::class, 'require_admin' ),
 					'callback'            => array( self::class, 'save_settings' ),
 				),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/audit',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( self::class, 'require_admin' ),
+				'callback'            => array( self::class, 'get_audit_log' ),
+			)
+		);
+	}
+
+	public static function get_audit_log() {
+		return rest_ensure_response(
+			array(
+				'enabled' => SettingsStore::get( 'enable_audit_log' ),
+				'entries' => array_reverse( AuditLog::entries() ), // Newest first.
 			)
 		);
 	}
