@@ -46,6 +46,16 @@ jobs:
       - name: Install production dependencies
         run: docker run --rm -v "$PWD":/app -w /app composer:2 install --no-dev --no-interaction --no-progress
 
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      # The action detects our .wp-env.json and runs checks inside that
+      # environment, so it must be started first.
+      - name: Start WordPress environment
+        run: npx --yes @wordpress/env start
+
       - name: Run plugin check
         uses: WordPress/plugin-check-action@v1
         with:
