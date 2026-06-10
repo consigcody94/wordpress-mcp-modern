@@ -80,7 +80,7 @@ final class SettingsPage {
 		}
 
 		$settings = SettingsStore::all();
-		$action   = esc_url( admin_url( 'admin-post.php' ) );
+		$action   = admin_url( 'admin-post.php' );
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'WordPress MCP', 'wordpress-mcp-modern' ) . '</h1>';
@@ -99,7 +99,7 @@ final class SettingsPage {
 		echo '<p>' . esc_html__( 'MCP endpoint:', 'wordpress-mcp-modern' ) . ' <code>' . esc_html( self::endpoint_url() ) . '</code></p>';
 
 		// --- Settings + per-tool form ---
-		echo '<form method="post" action="' . $action . '">';
+		echo '<form method="post" action="' . esc_url( $action ) . '">';
 		wp_nonce_field( self::SAVE_ACTION );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::SAVE_ACTION ) . '" />';
 
@@ -154,7 +154,7 @@ final class SettingsPage {
 			echo '<p><textarea readonly rows="3" style="width:100%;">' . esc_textarea( $new_token ) . '</textarea></p></div>';
 		}
 
-		echo '<form method="post" action="' . $action . '" style="margin-bottom:1em;">';
+		echo '<form method="post" action="' . esc_url( $action ) . '" style="margin-bottom:1em;">';
 		wp_nonce_field( self::TOKEN_ACTION );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::TOKEN_ACTION ) . '" />';
 		echo '<label>' . esc_html__( 'Expires in:', 'wordpress-mcp-modern' ) . ' ';
@@ -177,7 +177,7 @@ final class SettingsPage {
 			echo '<td>' . esc_html( gmdate( 'Y-m-d H:i', $token['issued_at'] ) ) . '</td>';
 			echo '<td>' . esc_html( gmdate( 'Y-m-d H:i', $token['expires_at'] ) ) . '</td>';
 			echo '<td>' . ( $token['revoked'] ? esc_html__( 'revoked', 'wordpress-mcp-modern' ) : esc_html__( 'active', 'wordpress-mcp-modern' ) ) . '</td>';
-			echo '<td><form method="post" action="' . $action . '">';
+			echo '<td><form method="post" action="' . esc_url( $action ) . '">';
 			wp_nonce_field( self::REVOKE_ACTION );
 			echo '<input type="hidden" name="action" value="' . esc_attr( self::REVOKE_ACTION ) . '" />';
 			echo '<input type="hidden" name="jti" value="' . esc_attr( $token['jti'] ) . '" />';
