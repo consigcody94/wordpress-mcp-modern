@@ -6,10 +6,10 @@
 
 [![CI](https://github.com/consigcody94/wordpress-mcp-modern/actions/workflows/ci.yml/badge.svg)](https://github.com/consigcody94/wordpress-mcp-modern/actions/workflows/ci.yml)
 [![WordPress](https://img.shields.io/badge/WordPress-6.9%2B-21759b?logo=wordpress&logoColor=white)](https://wordpress.org)
-[![PHP](https://img.shields.io/badge/PHP-7.4%E2%80%938.3-777bb4?logo=php&logoColor=white)](https://php.net)
+[![PHP](https://img.shields.io/badge/PHP-8.0%E2%80%938.3-777bb4?logo=php&logoColor=white)](https://php.net)
 [![Built on mcp-adapter](https://img.shields.io/badge/built%20on-WordPress%2Fmcp--adapter-1e8cbe)](https://github.com/WordPress/mcp-adapter)
 [![MCP Spec](https://img.shields.io/badge/MCP-2025--06--18-6f42c1)](https://modelcontextprotocol.io)
-[![Tests](https://img.shields.io/badge/tests-54%20passing%20%2F%20347%20assertions-3fb950)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-PHPUnit%20in%20wp--env-3fb950)](#-testing)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
 
 <em>63 tools · 5 resources · 2 prompts · JWT + Application Password auth · HTTP &amp; STDIO transports · WooCommerce-aware</em>
@@ -60,7 +60,7 @@ This project is a **ground-up re-implementation** of the old plugin's capabiliti
 flowchart LR
     Client["🧠 AI Client<br/>(Claude, Cursor, VS Code…)"]
 
-    subgraph WP["🌐 WordPress 6.9+ / PHP 7.4+"]
+    subgraph WP["🌐 WordPress 6.9+ / PHP 8.0+"]
         direction TB
         Perm["🔐 TransportPermission<br/>JWT · App Password"]
         Server["🗂️ MCP Server<br/>/wp-json/wpmcp/mcp"]
@@ -81,9 +81,13 @@ A connected client speaks MCP; mcp-adapter handles the protocol/transport; this 
 
 ## 🚀 Quick start
 
-> **Requirements:** WordPress **6.9+** (ships the Abilities API), PHP **7.4+**, Composer.
+> **Requirements:** WordPress **6.9+** (ships the Abilities API), PHP **8.0+**.
 
-### Install into an existing site
+### Install from a release (no Composer needed)
+
+Grab the packaged `wordpress-mcp-modern.zip` from the [Releases page](https://github.com/consigcody94/wordpress-mcp-modern/releases) — it bundles all PHP dependencies — and install it via **Plugins → Add New → Upload Plugin**.
+
+### Install from source
 
 ```bash
 cd wp-content/plugins/
@@ -219,7 +223,7 @@ You can also generate/list/revoke tokens from **Settings → WordPress MCP**.
 | 👤 Users | 7 | `wp_users_search`, `wp_add_user`, `wp_get_current_user`, … |
 | ⚙️ Settings | 2 | `wp_get_general_settings`, `wp_update_general_settings` |
 | 🧩 Custom post types | 6 | `wp_list_post_types`, `wp_cpt_search`, `wp_add_cpt`, … |
-| 🖼️ Media | 7 | `wp_list_media`, `wp_upload_media` (base64), `wp_get_media_file`, … |
+| 🖼️ Media | 7 | `wp_list_media`, `wp_upload_media` (base64), `wp_get_media_file` (URL + optional base64 contents), … |
 | 🧭 Core (reused) | 3 | `get_site_info`, `get_user_info`, `get_environment_info` |
 | 🛒 WooCommerce* | 20 | `wc_products_search`, `wc_add_product`, `wc_orders_search`, `wc_reports_sales`, … |
 | 🧪 Generic (REST-CRUD mode) | 3 | `list_api_functions`, `get_function_details`, `run_api_function` |
@@ -313,11 +317,9 @@ npx @wordpress/env run tests-cli \
   vendor/bin/phpunit
 ```
 
-```
-OK (54 tests, 347 assertions)
-```
+Coverage spans every ability group (registration + execution round-trips), settings-driven gating, the REST-CRUD mode swap, and JWT issue/validate/revoke + the transport permission callback. CI runs the same suite — plus a PHP syntax lint on the minimum and latest supported PHP — on every push and PR.
 
-Coverage spans every ability group (registration + execution round-trips), settings-driven gating, the REST-CRUD mode swap, and JWT issue/validate/revoke + the transport permission callback. CI runs the same suite on every push.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development setup and [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ---
 
@@ -361,10 +363,11 @@ wordpress-mcp-modern/
 
 ## 🗺️ Roadmap
 
-- [ ] Binary image **content blocks** for `wp_get_media_file` (currently returns URL + metadata)
+- [x] Inline file data for `wp_get_media_file` (`include_data: true` → base64, size-capped via the `wpmcp_media_file_max_bytes` filter)
+- [x] Packaged release `.zip` (built by the Release workflow on every `v*` tag) + WordPress.org `readme.txt`
+- [ ] Native MCP image **content blocks** for media tools
 - [ ] WooCommerce **Brands** + order write tools
 - [ ] Optional **React** settings UI for full visual parity
-- [ ] Packaged release `.zip` + WordPress.org `readme.txt`
 
 Contributions welcome — open an issue or PR. 💚
 
